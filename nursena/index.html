@@ -1,0 +1,183 @@
+<html xmlns:mso="urn:schemas-microsoft-com:office:office" xmlns:msdt="uuid:C2F41010-65B3-11d1-A29F-00AA00C14882">
+<head>
+    <title>D3.js Key Concepts</title>
+
+    <style type="text/css">
+        body{
+            background-color: rgb(204, 21, 21);
+            width: 100%;
+        }
+        #chart{
+            background-color: rgb(52, 172, 202);
+            width: 1000px;
+            height: 500px;
+            margin: 50px auto;
+            border: solid 1px #000;
+        }
+        svg{
+            background-color: rgb(238, 243, 161);
+        }
+        .dot{
+            stroke: #000;
+            stroke-width: 1px;
+        }
+        .axis line, .axis path{
+            stroke: #bbb;
+        }
+        .axis text{
+            fill: #bbb;
+        }
+        .axisLabel{
+            fill: #bbb;
+            font: sans-serif;
+            font-size: 10px;
+        }
+        #tooltip{
+            position: absolute;
+            background-color: #fff;
+            padding: 20px;
+            border: solid 1px #000;
+            opacity: 0;
+        }
+    </style>
+
+    <script type="text/javascript" src="d3.min.js"></script>
+
+<!--[if gte mso 9]><xml>
+<mso:CustomDocumentProperties>
+<mso:display_urn_x003a_schemas-microsoft-com_x003a_office_x003a_office_x0023_SharedWithUsers msdt:dt="string">BTE307-E&#287;itimde Modelleme ve Tasar&#305;m �yeleri</mso:display_urn_x003a_schemas-microsoft-com_x003a_office_x003a_office_x0023_SharedWithUsers>
+<mso:SharedWithUsers msdt:dt="string">7;#BTE307-E&#287;itimde Modelleme ve Tasar&#305;m �yeleri</mso:SharedWithUsers>
+</mso:CustomDocumentProperties>
+</xml><![endif]-->
+</head>
+<body>
+
+    <div id="chart"></div>
+    <div id="tooltip"></div>
+
+    <script type="text/javascript">
+        var margin = 30, width = 1000, height = 500, rValues = [2,15];
+        var circles, xScale, yScale;
+
+        var svg = d3.select('#chart')
+            .append('svg')
+            .attr('width', width + 'px')
+            .attr('height', height + 'px');
+
+
+        d3.csv('veri.csv').then(function(data){
+            // console.log(data);
+
+            data = data.sort(function(a,b){
+                return a.sorumluluk - b.sorumluluk;
+            });
+
+            xMinMax = d3.extent(data,function(d){
+                return parseFloat(d.dostluk);
+            });
+
+            yMinMax = d3.extent(data,function(d){
+                return parseFloat(d.bariscilolma);
+            });
+
+            rMinMax = d3.extent(data,function(d){
+                return parseFloat(d.saygi);
+            });
+
+            xScale = d3.scaleLinear()
+                .domain([xMinMax[1],xMinMax[0]])
+                .range([margin+rValues[1],width-margin-rValues[1]]);
+
+            yScale = d3.scaleLinear()
+                .domain([yMinMax[1],yMinMax[0]])
+                .range([margin+rValues[1],height-margin-rValues[1]]);
+
+            rScale = d3.scaleLinear()
+                .domain([rMinMax[0],rMinMax[1]])
+                .range([rValues[0],rValues[1]]);
+
+            cScale = d3.scaleOrdinal()
+                .domain([0,1])
+                .range(['#00FF00', '#FF0000']);
+
+            circles = svg.selectAll('.dot')
+                .data(data)
+                .enter()
+                .append('circle')
+                .attr('class', 'dot')
+                .attr('cx',function(d){
+                    return xScale(d.dostluk);
+                })
+                .attr('cy',function(d){
+                    return yScale(d.bariscilolma);
+                })
+                .attr('r',0)
+                .attr('fill',function(d){
+                    return cScale(d.sorumluluk);
+                })
+                .style('opacity', function(d){
+                    return d.sorumluluk == 1 ? 1 : 0.3;
+                })
+                .on('mouseover', function(d){
+                    html = 'X | dostluk: ' + d.dostluk + '<br />';
+                    html += 'Y | bariscilolma: ' + d.bariscilolma + '<br />';
+                    html += 'R | saygi: ' + d.saygi + '<br />';
+                    html += 'C | sorumluluk: ' + d.sorumluluk;
+                    d3.select('#tooltip')
+                        .html(html)
+                        .style('left', d3.event.pageX - 100)
+                        .style('top', d3.event.pageY - 150)
+                        .style('opacity', 0.85);
+                })
+                .on('mouseout', function(){
+                    d3.select('#tooltip')
+                        .style('left', -1000)
+                        .style('opacity', 0);
+                });
+
+            xAxis = d3.axisBottom(xScale).ticks(0);
+            yAxis = d3.axisLeft(yScale).tickValues([yMinMax[0],yMinMax[1]]);
+
+            xAxisG = svg.append('g')
+                .attr('id', 'xAxis')
+                .attr('class', 'axis');
+            yAxisG = svg.append('g')
+                .attr('id', 'yAxis')
+                .attr('class', 'axis');
+
+            xAxisG.call(xAxis)
+                .attr('transform', 'translate(0,' + (height-margin) + ')');
+            yAxisG.call(yAxis)
+                .attr('transform', 'translate(' + margin + ',0)');
+
+            svg.append('text')
+                .attr('x', xScale(xMinMax[0]))
+                .attr('y', yScale(yMinMax[0]) + margin)
+                .attr('text-anchor', 'middle')
+                .attr('class', 'axisLabel')
+                .text('more wealthy');
+
+            svg.append('text')
+                .attr('x', xScale(xMinMax[1]))
+                .attr('y', yScale(yMinMax[0]) + margin)
+                .attr('text-anchor', 'middle')
+                .attr('class', 'axisLabel')
+                .text('less wealthy');
+
+            update();
+        });
+
+        function update() {
+            circles.transition()
+                .delay(function(d,i){
+                    return i * 10;
+                })
+                .attr('r', function(d){
+                    return rScale(d.saygi);
+                });
+        }
+            
+    </script>
+
+</body>
+</html>
